@@ -421,6 +421,7 @@ function renderSegment(seg){
       <button class="tab" id="tab-script" onclick="switchSegTab('script','${seg.id}')">Скрипт интервью</button>
       <button class="tab" id="tab-int" onclick="switchSegTab('int','${seg.id}')">Интервью (${interviews.length})</button>
       <button class="tab" id="tab-art" onclick="switchSegTab('art','${seg.id}')">Артефакты</button>
+      <button class="tab" id="tab-rec" onclick="switchSegTab('rec','${seg.id}')">Рекрутинг</button>
     </div>
 
     <div class="tab-content active" id="tc-hyp">
@@ -431,6 +432,9 @@ function renderSegment(seg){
     </div>
     <div class="tab-content" id="tc-art">
       ${renderArtifacts(seg)}
+    </div>
+    <div class="tab-content" id="tc-rec">
+      ${renderRecruitment(seg)}
     </div>
     <div class="tab-content" id="tc-int">
       <button class="btn btn-primary" style="margin-bottom:16px" onclick="showAddInterview('${seg.id}')">+ Добавить интервью</button>
@@ -758,6 +762,120 @@ function resetInvite(segId){
   const el=document.getElementById('invite-'+segId);
   el.value=INVITE_MSGS[segId]||'';
   saveArtifact(segId,'invite',el.value);
+}
+
+
+function renderRecruitment(seg){
+  if(!state.recruits)state.recruits={};
+  const recruits=(state.recruits[seg.id]||[]);
+  const statusLabel={new:'🔵 Написали',scheduled:'🟡 Договорились',done:'🟢 Провели',dropped:'🔴 Отвал'};
+  const statusColor={new:'var(--accent2)',scheduled:'var(--warn)',done:'var(--accent)',dropped:'var(--danger)'};
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--text2)">${recruits.length} респондентов</div>
+      <button class="btn btn-primary" style="font-size:12px" onclick="showAddRecruit('${seg.id}')">+ Добавить респондента</button>
+    </div>
+    ${recruits.length===0?'<div class="empty"><div class="empty-icon">👤</div>Добавь первого кандидата</div>':
+      recruits.map((r,i)=>`
+        <div class="interview-entry">
+          <div class="ie-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <div class="ie-title" style="margin:0">${r.name}</div>
+              <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.06);color:${statusColor[r.status||'new']}">${statusLabel[r.status||'new']}</span>
+              ${r.status==='dropped'&&r.dropReason?`<span style="font-size:11px;color:var(--danger)">${r.dropReason}</span>`:''}
+            </div>
+            <div class="ie-meta">
+              ${r.role?r.role+' · ':''}${r.contact?r.contact+' · ':''}
+              ${r.contacted?'Написали: '+r.contacted+' · ':''}
+              ${r.scheduled?'Созвон: '+r.scheduled:''}
+            </div>
+            ${r.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px">${r.notes}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <select style="font-size:11px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer" onchange="updateRecruitStatus('${seg.id}',${i},this.value)">
+              <option value="new" ${r.status==='new'||!r.status?'selected':''}>🔵 Написали</option>
+              <option value="scheduled" ${r.status==='scheduled'?'selected':''}>🟡 Договорились</option>
+              <option value="done" ${r.status==='done'?'selected':''}>🟢 Провели</option>
+              <option value="dropped" ${r.status==='dropped'?'selected':''}>🔴 Отвал</option>
+            </select>
+            <button class="del-btn" onclick="deleteRecruit('${seg.id}',${i})">×</button>
+          </div>
+        </div>
+      `).join('')
+    }
+  `;
+}
+
+function showAddRecruit(segId){
+  const modal=document.getElementById('addModal');
+  document.getElementById('modal-title').textContent='Добавить респондента';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row">
+      <div class="form-group"><label>Имя</label><input id="r-name" placeholder="Имя Фамилия"/></div>
+      <div class="form-group"><label>Роль / сфера</label><input id="r-role" placeholder="Коуч, спикер..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Контакт (TG/email)</label><input id="r-contact" placeholder="@username или email"/></div>
+      <div class="form-group"><label>Статус</label>
+        <select id="r-status">
+          <option value="new">🔵 Написали</option>
+          <option value="scheduled">🟡 Договорились</option>
+          <option value="done">🟢 Провели</option>
+          <option value="dropped">🔴 Отвал</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Дата первого контакта</label><input id="r-contacted" type="date" value="${new Date().toISOString().split('T')[0]}"/></div>
+      <div class="form-group"><label>Дата созвона (договорились)</label><input id="r-scheduled" type="date"/></div>
+    </div>
+    <div class="form-row full" id="drop-row" style="display:none">
+      <div class="form-group"><label>Причина отвала</label><input id="r-dropreason" placeholder="Не отвечает, не подходит..."/></div>
+    </div>
+    <div class="form-row full">
+      <div class="form-group"><label>Заметки</label><textarea id="r-notes" placeholder="Откуда нашли, детали..."></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveRecruit('${segId}')">Сохранить</button>
+    </div>
+  `;
+  document.getElementById('r-status').addEventListener('change',function(){
+    document.getElementById('drop-row').style.display=this.value==='dropped'?'grid':'none';
+  });
+  modal.style.display='flex';
+}
+
+function saveRecruit(segId){
+  const name=document.getElementById('r-name').value.trim();
+  if(!name){alert('Введи имя');return;}
+  if(!state.recruits)state.recruits={};
+  if(!state.recruits[segId])state.recruits[segId]=[];
+  state.recruits[segId].push({
+    name,
+    role:document.getElementById('r-role').value,
+    contact:document.getElementById('r-contact').value,
+    status:document.getElementById('r-status').value,
+    contacted:document.getElementById('r-contacted').value,
+    scheduled:document.getElementById('r-scheduled').value,
+    dropReason:document.getElementById('r-dropreason')?.value||'',
+    notes:document.getElementById('r-notes').value,
+  });
+  saveState();
+  closeModal();
+  switchSegTab('rec',segId);
+}
+
+function updateRecruitStatus(segId,idx,status){
+  if(!state.recruits||!state.recruits[segId])return;
+  state.recruits[segId][idx].status=status;
+  saveState();
+}
+
+function deleteRecruit(segId,idx){
+  state.recruits[segId].splice(idx,1);
+  saveState();
+  switchSegTab('rec',segId);
 }
 
 // INIT
