@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PeopleDo - AJTBD Research Tool</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f1a;--surface:#1a1a2e;--surface2:#22223a;--surface3:#2a2a45;
+  --accent:#4ade80;--accent2:#818cf8;--warn:#fbbf24;--danger:#f87171;
+  --text:#f0f0f0;--text2:#9090a8;--border:rgba(255,255,255,0.07);
+  --s1:#4ade80;--s2:#f87171;--s3:#fbbf24;--s4:#818cf8;--s5:#fb923c;--s6:#34d399;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.brand{padding:16px;border-bottom:1px solid var(--border)}
+.brand-name{font-size:14px;font-weight:800;color:var(--accent)}
+.brand-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.nav-section{padding:10px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2)}
+.nav-btn{width:100%;padding:8px 14px;background:none;border:none;border-left:2px solid transparent;cursor:pointer;text-align:left;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;transition:all .15s}
+.nav-btn:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.nav-btn.active{border-left-color:var(--accent);color:var(--accent);background:rgba(74,222,128,0.06)}
+.seg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.main{flex:1;overflow-y:auto;padding:24px 32px}
+.view{display:none}
+.view.active{display:block}
+.page-title{font-size:22px;font-weight:800;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--surface2);padding:4px;border-radius:9px;width:fit-content}
+.tab{padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;color:var(--text2);border:none;background:none;transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.tab-content{display:none}.tab-content.active{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.mini-card{background:var(--surface2);border-radius:8px;padding:12px}
+.mini-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:5px}
+.mini-val{font-size:12px;line-height:1.5}
+.script-block{margin-bottom:16px;background:var(--surface2);border-radius:8px;padding:14px}
+.script-time{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--warn);margin-bottom:8px}
+.script-q{font-size:12px;color:var(--text);line-height:1.6;padding:6px 0;border-bottom:1px solid var(--border)}
+.script-q:last-child{border-bottom:none}
+.script-q .num{color:var(--accent2);font-weight:700;margin-right:6px}
+.script-note{font-size:11px;color:var(--text2);margin-top:4px;margin-left:18px;font-style:italic}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-row.full{grid-template-columns:1fr}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.form-group textarea{resize:vertical;min-height:60px}
+.btn{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:#22c55e}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{color:var(--text)}
+.interview-entry{background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:8px;display:flex;gap:10px}
+.ie-body{flex:1}
+.ie-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.ie-meta{font-size:11px;color:var(--text2);margin-bottom:6px}
+.ie-jobs{display:flex;gap:6px;flex-wrap:wrap}
+.job-tag{font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(74,222,128,0.1);color:var(--accent)}
+.del-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;padding:2px}
+.del-btn:hover{color:var(--danger)}
+.score-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:6px;margin-right:4px}
+.score-high{background:rgba(74,222,128,0.1);color:var(--accent)}
+.score-mid{background:rgba(251,191,36,0.1);color:var(--warn)}
+.score-low{background:rgba(248,113,113,0.08);color:var(--danger)}
+#graph-container{width:100%;height:600px;background:var(--surface);border-radius:12px;border:1px solid var(--border);position:relative;overflow:hidden}
+#graph-svg{width:100%;height:100%}
+.graph-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.gl-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.gl-dot{width:10px;height:10px;border-radius:50%}
+.tooltip{position:absolute;background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;pointer-events:none;display:none;z-index:100;max-width:280px}
+.stats-bar{display:flex;gap:12px;margin-bottom:24px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 16px;flex:1;text-align:center}
+.stat-num{font-size:22px;font-weight:800;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text2);margin-top:2px}
+.empty{text-align:center;padding:32px;color:var(--text2);font-size:13px}
+.empty-icon{font-size:32px;margin-bottom:8px}
+.legend-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
+.legend-step{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.legend-step:last-child{border-bottom:none}
+.legend-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#000;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.legend-text h4{font-size:13px;font-weight:700;margin-bottom:2px}
+.legend-text p{font-size:12px;color:var(--text2)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-name">PeopleDo AJTBD</div>
+    <div class="brand-sub">Research Tool</div><div id="sync-status" style="font-size:10px;color:var(--accent);margin-top:4px">Подключение...</div>
+  </div>
+  <div style="padding:8px 0">
+    <button class="nav-btn active" onclick="showView('home',this)"><span>🏠</span> Как пользоваться</button>
+    <button class="nav-btn" onclick="showView('graph-view',this)"><span>🕸️</span> Граф работ</button>
+  </div>
+  <div class="nav-section">Сегменты</div>
+  <div id="seg-nav"></div>
+</div>
+<div class="main">
+  <!-- HOME -->
+  <div id="home" class="view active">
+    <div class="page-title">AJTBD Research Tool</div>
+    <div class="page-sub">Инструмент для поиска PMF PeopleDo через граф работ</div>
+    <div class="stats-bar" id="home-stats">
+      <div class="stat"><div class="stat-num" id="stat-seg">6</div><div class="stat-label">Сегментов</div></div>
+      <div class="stat"><div class="stat-num" id="stat-int">0</div><div class="stat-label">Интервью</div></div>
+      <div class="stat"><div class="stat-num" id="stat-jobs">0</div><div class="stat-label">Работ в графе</div></div>
+    </div>
+    <div class="legend-card">
+      <div class="card-title">Как работать с этим инструментом</div>
+      <div class="legend-step"><div class="legend-num">1</div><div class="legend-text"><h4>Выбери сегмент</h4><p>В левом меню 6 сегментов пользователей PeopleDo. Каждый имеет свои гипотезы работ и скрипт интервью.</p></div></div>
+      <div class="legend-step"><div class="legend-num">2</div><div class="legend-text"><h4>Прочитай скрипт перед интервью</h4><p>Каждый сегмент имеет адаптированный AJTBD-скрипт. Блоки: разогрев, навигация в работы, детальное прокапывание, предыдущие/следующие работы.</p></div></div>
+      <div class="legend-step"><div class="legend-num">3</div><div class="legend-text"><h4>Введи данные после интервью</h4><p>Открой вкладку "Интервью" нужного сегмента. Добавь респондента, зафикси работы: ожидаемый результат, контекст, триггер, эмоции, текущее решение, оценки.</p></div></div>
+      <div class="legend-step"><div class="legend-num">4</div><div class="legend-text"><h4>Смотри граф</h4><p>Раздел "Граф работ" автоматически строит визуализацию всех работ из всех интервью. Узлы = работы, рёбра = связи "чтобы что", размер = важность × частота.</p></div></div>
+      <div class="legend-step"><div class="legend-num">5</div><div class="legend-text"><h4>Ищи паттерны</h4><p>Работы которые упоминают 3+ респондента из разных сегментов = сильный сигнал. Именно там живёт PMF.</p></div></div>
+    </div>
+  </div>
+
+  <!-- GRAPH -->
+  <div id="graph-view" class="view">
+    <div class="page-title">Граф работ</div>
+    <div class="page-sub">Автоматически строится из всех введённых интервью</div>
+    <div class="graph-legend" id="graph-legend"></div>
+    <div id="graph-container">
+      <svg id="graph-svg"></svg>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--text2)">
+      Размер узла = важность × кол-во упоминаний. Тащи узлы для реорганизации.
+    </div>
+  </div>
+
+  <!-- SEGMENT VIEWS -->
+  <div id="seg-view" class="view">
+    <div id="seg-content"></div>
+  </div>
+</div>
+</div>
+
+<div id="addModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:12px;padding:24px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px" id="modal-title">Добавить интервью</h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCU4aBJx46ufOg3auk6wn92c3m3O_TeDuk",
+    authDomain: "peopledomd-research.firebaseapp.com",
+    databaseURL: "https://peopledomd-research-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "peopledomd-research",
+    storageBucket: "peopledomd-research.firebasestorage.app",
+    messagingSenderId: "195845959183",
+    appId: "1:195845959183:web:d0f109e1a4836191f3fd7a"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const DATA_REF = db.ref('ajtbd-tool');
+  let isSyncing = false;
+
+// ====== DATA ======
+const SEGMENTS = [
+  {
+    id:'s1', color:'var(--s1)', emoji:'🎤',
+    name:'Эксперты и спикеры',
+    desc:'Люди которые часто себя представляют — спикеры, консультанты, тренеры с инфопродуктом.',
+    hypotheses:[
+      {level:'top', job:'Монетизировать экспертизу через личный бренд', context:'Работаю самостоятельно, продаю услуги или курсы'},
+      {level:'mid', job:'Конвертировать тёплый контакт в клиента', context:'После нетворкинга / знакомства / выступления'},
+      {level:'mid', job:'Объяснить кто я и что делаю за 30 секунд', context:'Новое знакомство, нет времени на длинное интро'},
+      {level:'low', job:'Поделиться ссылкой на свой профиль', context:'Добавляю в TG/WhatsApp после встречи'},
+    ],
+    script:[
+      {time:'3 мин', title:'Разогрев', questions:[
+        {q:'Расскажи коротко — чем ты занимаешься и как получаешь клиентов?'},
+        {q:'Как часто у тебя бывают новые знакомства с людьми которые могут стать клиентами?'},
+      ]},
+      {time:'10 мин', title:'Навигация в работы', questions:[
+        {q:'Вспомни последний раз когда ты познакомился с кем-то интересным на событии или в сети. Что ты сделал сразу после?', note:'Цель: понять что происходит в момент знакомства'},
+        {q:'Какие результаты ты хочешь получить после того как познакомился с человеком? Зачем ты вообще знакомишься?'},
+        {q:'Что из этого самое важное и частотное для тебя?'},
+      ]},
+      {time:'30 мин', title:'Детальное прокапывание работы', questions:[
+        {q:'Расскажи подробнее в какой ситуации ты обычно находишься когда нужно "представить себя" новому человеку?'},
+        {q:'В какой момент ты начинаешь что-то делать для этого? Что становится триггером?'},
+        {q:'Зачем тебе это? Чтобы что? (копаем до эмоции)'},
+        {q:'Как ты себя чувствуешь когда получаешь этот результат? Какая это эмоция?'},
+        {q:'Пока ты не получаешь нужный результат — какие негативные эмоции испытываешь?'},
+        {q:'Насколько важно получить этот результат по шкале 1-10? (если 8+ — почему так высоко?)'},
+        {q:'Расскажи как ты обычно представляешь себя — что отправляешь, что говоришь, что показываешь?'},
+        {q:'Насколько ты доволен этим способом 1-10? Чего не хватает до 10?'},
+        {q:'Рассматривал ли другие инструменты или способы? Почему выбрал то что используешь?'},
+      ]},
+      {time:'10 мин', title:'Предыдущие и следующие работы', questions:[
+        {q:'Что ты делал до того как нашёл текущий способ представить себя?'},
+        {q:'После того как поделился контактом — что происходит дальше? Как отслеживаешь результат?'},
+      ]},
+    ]
+  },
+  {
+    id:'s2', color:'var(--s2)', emoji:'👋',
+    name:'Бросившие',
+    desc:'Зарегистрировались в PeopleDo но не вернулись.',
+    hypotheses:[
+      {level:'top', job:'Найти быстрый способ делиться контактом профессионально', context:'Устал от неудобного способа'},
+      {level:'mid', job:'Попробовать новый инструмент для нетворкинга', context:'Увидел в соцсетях / рекомендация'},
+    ],
+    script:[
+      {time:'3 мин', title:'Разогрев', questions:[
+        {q:'Расскажи как ты обычно знакомишься с новыми людьми по работе?'},
+      ]},
+      {time:'10 мин', title:'Навигация — зачем регистрировался', questions:[
+        {q:'Вспомни момент когда ты зарегистрировался в PeopleDo. Что происходило в твоей жизни в тот момент?'},
+        {q:'Что ты хотел получить? Зачем скачал / зарегистрировался?'},
+        {q:'Что стало триггером — что-то конкретное произошло или просто искал что-то?'},
+      ]},
+      {time:'15 мин', title:'Что не сработало', questions:[
+        {q:'Что произошло после регистрации? Что ты пробовал сделать?'},
+        {q:'В какой момент ты понял что перестал пользоваться?'},
+        {q:'Что именно не сработало или разочаровало?'},
+        {q:'Как ты сейчас решаешь ту же задачу — чем пользуешься вместо?'},
+        {q:'Насколько доволен текущим решением 1-10?'},
+      ]},
+      {time:'5 мин', title:'Что нужно было', questions:[
+        {q:'Что должно было быть в продукте чтобы ты остался?'},
+        {q:'Если бы продукт работал идеально — как бы выглядел твой результат?'},
+      ]},
+    ]
+  },
+  {
+    id:'s3', color:'var(--s3)', emoji:'🔔',
+    name:'Незактивированные',
+    desc:'Зарегистрировались но не заполнили профиль.',
+    hypotheses:[
+      {level:'top', job:'Попробовать новый инструмент для продвижения', context:''},
+      {level:'mid', job:'Создать профессиональную страницу о себе', context:''},
+    ],
+    script:[
+      {time:'3 мин', title:'Разогрев', questions:[
+        {q:'Расскажи как ты продвигаешь себя или свои услуги сейчас?'},
+      ]},
+      {time:'10 мин', title:'Зачем зарегистрировался', questions:[
+        {q:'Вспомни момент регистрации в PeopleDo. Откуда узнал и что хотел попробовать?'},
+        {q:'Какой результат ты ожидал получить?'},
+        {q:'Что остановило тебя от следующего шага — заполнения профиля?'},
+      ]},
+      {time:'15 мин', title:'Барьеры', questions:[
+        {q:'Что было непонятно или неудобно на первом экране?'},
+        {q:'Не хватило времени / мотивации / понимания зачем?'},
+        {q:'Если бы профиль заполнился автоматически — ты бы воспользовался?'},
+        {q:'Что должно было произойти чтобы ты захотел заполнить профиль прямо сейчас?'},
+      ]},
+    ]
+  },
+  {
+    id:'s4', color:'var(--s4)', emoji:'🤔',
+    name:'Активированные без шаринга',
+    desc:'Заполнили профиль но ни разу не поделились ссылкой.',
+    hypotheses:[
+      {level:'top', job:'Иметь профессиональный онлайн-присутствие', context:''},
+      {level:'mid', job:'Создать страницу о себе "для порядка"', context:'Нет конкретной задачи где делиться'},
+    ],
+    script:[
+      {time:'3 мин', title:'Разогрев', questions:[
+        {q:'Расскажи как ты обычно представляешься новым людям по работе?'},
+      ]},
+      {time:'10 мин', title:'Зачем создал профиль', questions:[
+        {q:'Ты создал профиль в PeopleDo — зачем? Что хотел получить?'},
+        {q:'В каких ситуациях ты планировал его использовать?'},
+        {q:'Что стало триггером для создания?'},
+      ]},
+      {time:'15 мин', title:'Почему не шаришь', questions:[
+        {q:'Ни разу не поделился ссылкой с кем-то — почему? Не было ситуации или что-то останавливает?'},
+        {q:'Если представить ситуацию когда ты мог бы поделиться — какая это ситуация?'},
+        {q:'Что должно произойти чтобы ты отправил ссылку прямо сейчас?'},
+        {q:'Чем пользуешься сейчас когда нужно представить себя?'},
+      ]},
+    ]
+  },
+  {
+    id:'s5', color:'var(--s5)', emoji:'🧪',
+    name:'Тестировщики',
+    desc:'Люди которые будут выступать и распространять PeopleDo.',
+    hypotheses:[
+      {level:'top', job:'Выстроить поток клиентов через выступления', context:''},
+      {level:'mid', job:'Конвертировать аудиторию выступления в контакты', context:'После доклада люди уходят и не возвращаются'},
+    ],
+    script:[
+      {time:'5 мин', title:'Разогрев', questions:[
+        {q:'Как часто выступаешь? Какой формат — конференции, митапы, онлайн?'},
+        {q:'Что обычно происходит после выступления — как люди с тобой связываются?'},
+      ]},
+      {time:'15 мин', title:'Текущий процесс', questions:[
+        {q:'Вспомни последнее выступление. Что ты показывал аудитории чтобы с тобой связались?'},
+        {q:'Сколько людей обычно пишут после выступления? Насколько доволен этой конверсией?'},
+        {q:'Что чувствуешь когда люди уходят и не пишут?'},
+        {q:'Пробовал что-то менять — QR-коды, ссылки, визитки? Что сработало?'},
+      ]},
+      {time:'10 мин', title:'Тест PeopleDo', questions:[
+        {q:'Попробовал бы показать свою PeopleDo-страницу на выступлении? Почему да/нет?'},
+        {q:'Что должно быть на странице чтобы ты не стеснялся её показать на большом экране?'},
+        {q:'После того как люди перейдут по ссылке — что ты хочешь чтобы они сделали?'},
+      ]},
+      {time:'5 мин', title:'WTP и рекомендации', questions:[
+        {q:'Порекомендовал бы PeopleDo коллегам-спикерам? При каком условии?'},
+        {q:'Что нужно добавить или убрать чтобы инструмент стал must-have для выступающих?'},
+      ]},
+    ]
+  },
+  {
+    id:'s6', color:'var(--s6)', emoji:'⭐',
+    name:'Активированные с шарингом',
+    desc:'Заполнили профиль И поделились ссылкой. Самый ценный сегмент — здесь живёт PMF.',
+    hypotheses:[
+      {level:'top', job:'Неизвестна — нужно выяснить', context:''},
+      {level:'mid', job:'???', context:''},
+    ],
+    script:[
+      {time:'3 мин', title:'Разогрев', questions:[
+        {q:'Расскажи кратко чем занимаешься и как обычно получаешь новых клиентов?'},
+      ]},
+      {time:'15 мин', title:'Навигация в работы — ГЛАВНЫЙ БЛОК', questions:[
+        {q:'Ты поделился своей PeopleDo-страницей с кем-то. Расскажи как это произошло — что за ситуация была?'},
+        {q:'Что ты хотел получить когда отправил ссылку? Какой результат ожидал?'},
+        {q:'Зачем тебе этот результат? Чтобы что? (копаем глубже)'},
+        {q:'Как ты себя чувствовал когда отправлял ссылку? Что это давало тебе?'},
+        {q:'Насколько важно было получить этот результат 1-10?', note:'Если 8+ — почему так высоко?'},
+      ]},
+      {time:'15 мин', title:'Детальное прокапывание', questions:[
+        {q:'До PeopleDo — как ты решал эту же задачу? Что отправлял или говорил?'},
+        {q:'Насколько ты был доволен старым способом 1-10? Чего не хватало?'},
+        {q:'Что именно тебе нравится в том как PeopleDo решает эту задачу?'},
+        {q:'Был ли момент когда ты понял что это работает — aha-moment?'},
+        {q:'Что не устраивает или мешает пользоваться чаще?'},
+      ]},
+      {time:'7 мин', title:'WTP и следующие работы', questions:[
+        {q:'Готов ли платить за такой инструмент? Сколько в месяц было бы справедливо?'},
+        {q:'Рекомендовал бы коллегам? Кому именно и почему?'},
+        {q:'После того как поделился ссылкой — что происходит дальше? Следишь кто открыл?'},
+      ]},
+    ]
+  },
+];
+
+let state = {interviews: {}, jobs: {}};
+
+function loadState(){
+  // Firebase: подписываемся на изменения в реальном времени
+  document.getElementById('sync-status').textContent='Синхронизирован ✓';
+  DATA_REF.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if(data){
+      state.interviews = data.interviews || {};
+      state.jobs = data.jobs || {};
+      state.artifacts = data.artifacts || {};
+    }
+    SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
+    updateStats();
+    // Если открыт граф — перестроить
+    if(document.getElementById('graph-view').classList.contains('active')) renderGraph();
+  });
+}
+function saveState(){
+  DATA_REF.set(state).catch(e=>console.error('Firebase save error:',e));
+}
+
+// BUILD SIDEBAR
+function buildSidebar(){
+  const nav=document.getElementById('seg-nav');
+  nav.innerHTML=SEGMENTS.map(s=>`
+    <button class="nav-btn" onclick="openSegment('${s.id}',this)">
+      <span class="seg-dot" style="background:${s.color}"></span>
+      <span style="font-size:11px;line-height:1.3">${s.name}</span>
+    </button>
+  `).join('');
+}
+
+function showView(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(id==='graph-view')renderGraph();
+  updateStats();
+}
+
+function openSegment(segId,btn){
+  const seg=SEGMENTS.find(s=>s.id===segId);
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('seg-view').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderSegment(seg);
+  updateStats();
+}
+
+function renderSegment(seg){
+  const interviews=state.interviews[seg.id]||[];
+  document.getElementById('seg-content').innerHTML=`
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px">
+      <div style="width:40px;height:40px;border-radius:10px;background:${seg.color}22;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${seg.emoji}</div>
+      <div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:4px">${seg.name}</div>
+        <div style="font-size:13px;color:var(--text2)">${seg.desc}</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-hyp" onclick="switchSegTab('hyp','${seg.id}')">Гипотезы работ</button>
+      <button class="tab" id="tab-script" onclick="switchSegTab('script','${seg.id}')">Скрипт интервью</button>
+      <button class="tab" id="tab-int" onclick="switchSegTab('int','${seg.id}')">Интервью (${interviews.length})</button>
+      <button class="tab" id="tab-art" onclick="switchSegTab('art','${seg.id}')">Артефакты</button>
+    </div>
+
+    <div class="tab-content active" id="tc-hyp">
+      ${renderHypotheses(seg)}
+    </div>
+    <div class="tab-content" id="tc-script">
+      ${renderScript(seg)}
+    </div>
+    <div class="tab-content" id="tc-art">
+      ${renderArtifacts(seg)}
+    </div>
+    <div class="tab-content" id="tc-int">
+      <button class="btn btn-primary" style="margin-bottom:16px" onclick="showAddInterview('${seg.id}')">+ Добавить интервью</button>
+      <div id="int-list-${seg.id}">
+        ${renderInterviews(seg.id)}
+      </div>
+    </div>
+  `;
+}
+
+function switchSegTab(tab,segId){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('tc-'+tab).classList.add('active');
+  if(tab==='int'){
+    document.getElementById('int-list-'+segId).innerHTML=renderInterviews(segId);
+  }
+}
+
+function renderHypotheses(seg){
+  const levelName={top:'Работа высшего уровня',mid:'Работы среднего уровня',low:'Работы нижнего уровня'};
+  const byLevel={};
+  seg.hypotheses.forEach(h=>{if(!byLevel[h.level])byLevel[h.level]=[];byLevel[h.level].push(h);});
+  return ['top','mid','low'].filter(l=>byLevel[l]).map(l=>`
+    <div class="card" style="border-left:3px solid ${seg.color}">
+      <div class="card-title">${levelName[l]}</div>
+      ${byLevel[l].map(h=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">${h.job}</div>
+          ${h.context?`<div style="font-size:11px;color:var(--text2)">${h.context}</div>`:''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function renderScript(seg){
+  return seg.script.map((block,bi)=>`
+    <div class="script-block">
+      <div class="script-time">${block.time} — ${block.title}</div>
+      ${block.questions.map((q,qi)=>`
+        <div class="script-q">
+          <span class="num">${qi+1}.</span>${q.q}
+          ${q.note?`<div class="script-note">${q.note}</div>`:''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function renderInterviews(segId){
+  const interviews=state.interviews[segId]||[];
+  if(!interviews.length)return`<div class="empty"><div class="empty-icon">🎙️</div>Нет интервью. Добавь первое!</div>`;
+  return interviews.map((iv,i)=>`
+    <div class="interview-entry">
+      <div class="ie-body">
+        <div class="ie-title">${iv.name}${iv.role?` <span style="font-weight:400;color:var(--text2)">· ${iv.role}</span>`:''}</div>
+        <div class="ie-meta">${iv.date||''}</div>
+        <div class="ie-jobs">
+          ${(iv.jobs||[]).map(j=>`<span class="job-tag">📌 ${j.result}</span>`).join('')}
+        </div>
+        ${iv.notes?`<div style="font-size:12px;color:var(--text2);margin-top:6px">${iv.notes}</div>`:''}
+      </div>
+      <button class="del-btn" onclick="deleteInterview('${segId}',${i})">×</button>
+    </div>
+  `).join('');
+}
+
+function deleteInterview(segId,idx){
+  state.interviews[segId].splice(idx,1);
+  saveState();
+  document.getElementById('int-list-'+segId).innerHTML=renderInterviews(segId);
+  updateStats();
+}
+
+function showAddInterview(segId){
+  const modal=document.getElementById('addModal');
+  document.getElementById('modal-title').textContent='Добавить интервью — '+SEGMENTS.find(s=>s.id===segId).name;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row">
+      <div class="form-group"><label>Имя респондента</label><input id="f-name" placeholder="Имя Фамилия"/></div>
+      <div class="form-group"><label>Дата</label><input id="f-date" type="date" value="${new Date().toISOString().split('T')[0]}"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Роль / сфера</label><input id="f-role" placeholder="Коуч, спикер, консультант..."/></div>
+      <div class="form-group"><label>Контакт</label><input id="f-contact" placeholder="TG, email..."/></div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:16px 0 12px;padding-top:12px;font-size:13px;font-weight:700">Работы (Jobs) выявленные в интервью</div>
+    <div id="jobs-list"></div>
+    <button class="btn btn-ghost" style="margin-bottom:16px;font-size:12px" onclick="addJobRow()">+ Добавить работу</button>
+
+    <div class="form-row full">
+      <div class="form-group"><label>Заметки / цитаты</label><textarea id="f-notes" placeholder="Ключевые цитаты, инсайты..."></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveInterview('${segId}')">Сохранить</button>
+    </div>
+  `;
+  addJobRow();
+  modal.style.display='flex';
+}
+
+let jobRowCount=0;
+function addJobRow(){
+  const idx=++jobRowCount;
+  const list=document.getElementById('jobs-list');
+  const div=document.createElement('div');
+  div.id=`job-row-${idx}`;
+  div.style.cssText='background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:10px';
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--accent2)">Работа ${idx}</span>
+      <button onclick="this.closest('[id]').remove()" style="background:none;border:none;color:var(--danger);cursor:pointer">×</button>
+    </div>
+    <div class="form-row full"><div class="form-group"><label>Ожидаемый результат (Job Statement)</label><input id="j-result-${idx}" placeholder="Что хочет получить пользователь?"/></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Контекст</label><input id="j-context-${idx}" placeholder="В какой ситуации?"/></div>
+      <div class="form-group"><label>Триггер</label><input id="j-trigger-${idx}" placeholder="Что запускает работу?"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Позитивная эмоция</label><input id="j-pos-${idx}" placeholder="Как хочет себя чувствовать?"/></div>
+      <div class="form-group"><label>Негативная эмоция (до)</label><input id="j-neg-${idx}" placeholder="Что испытывает сейчас?"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Текущее решение</label><input id="j-solution-${idx}" placeholder="Что использует сейчас?"/></div>
+      <div class="form-group"><label>Работа выше уровнем (чтобы что?)</label><input id="j-parent-${idx}" placeholder="Ради чего?"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Важность (1-10)</label><input id="j-importance-${idx}" type="number" min="1" max="10" placeholder="8"/></div>
+      <div class="form-group"><label>Удовлетворённость решением (1-10)</label><input id="j-satisfaction-${idx}" type="number" min="1" max="10" placeholder="5"/></div>
+    </div>
+  `;
+  list.appendChild(div);
+}
+
+function saveInterview(segId){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('Введи имя');return;}
+  const jobs=[];
+  document.querySelectorAll('[id^="job-row-"]').forEach(row=>{
+    const idx=row.id.split('-')[2];
+    const result=document.getElementById(`j-result-${idx}`)?.value?.trim();
+    if(result){
+      jobs.push({
+        result,
+        context:document.getElementById(`j-context-${idx}`)?.value||'',
+        trigger:document.getElementById(`j-trigger-${idx}`)?.value||'',
+        posEmotion:document.getElementById(`j-pos-${idx}`)?.value||'',
+        negEmotion:document.getElementById(`j-neg-${idx}`)?.value||'',
+        solution:document.getElementById(`j-solution-${idx}`)?.value||'',
+        parent:document.getElementById(`j-parent-${idx}`)?.value||'',
+        importance:parseInt(document.getElementById(`j-importance-${idx}`)?.value)||0,
+        satisfaction:parseInt(document.getElementById(`j-satisfaction-${idx}`)?.value)||0,
+        segId,
+      });
+    }
+  });
+  const iv={
+    name,
+    date:document.getElementById('f-date').value,
+    role:document.getElementById('f-role').value,
+    contact:document.getElementById('f-contact').value,
+    notes:document.getElementById('f-notes').value,
+    jobs,
+  };
+  state.interviews[segId].push(iv);
+  saveState();
+  closeModal();
+  document.getElementById('int-list-'+segId).innerHTML=renderInterviews(segId);
+  updateStats();
+  switchSegTab('int',segId);
+}
+
+function closeModal(){
+  document.getElementById('addModal').style.display='none';
+  jobRowCount=0;
+}
+
+document.getElementById('addModal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('addModal'))closeModal();
+});
+
+function updateStats(){
+  let total=0;
+  SEGMENTS.forEach(s=>total+=(state.interviews[s.id]||[]).length);
+  let jobCount=0;
+  SEGMENTS.forEach(s=>(state.interviews[s.id]||[]).forEach(iv=>jobCount+=(iv.jobs||[]).length));
+  document.getElementById('stat-int').textContent=total;
+  document.getElementById('stat-jobs').textContent=jobCount;
+}
+
+// ====== GRAPH ======
+function renderGraph(){
+  const allJobs=[];
+  const jobMap={};
+  const links=[];
+
+  SEGMENTS.forEach(seg=>{
+    (state.interviews[seg.id]||[]).forEach(iv=>{
+      (iv.jobs||[]).forEach(job=>{
+        const key=job.result.toLowerCase().substring(0,40);
+        if(!jobMap[key]){
+          jobMap[key]={id:key,label:job.result,importance:0,count:0,segId:seg.id,color:seg.color,context:job.context,trigger:job.trigger,solution:job.solution,parent:job.parent};
+          allJobs.push(jobMap[key]);
+        }
+        jobMap[key].count++;
+        jobMap[key].importance=Math.max(jobMap[key].importance,job.importance||5);
+        if(job.parent){
+          const parentKey=job.parent.toLowerCase().substring(0,40);
+          if(!jobMap[parentKey]){
+            jobMap[parentKey]={id:parentKey,label:job.parent,importance:0,count:0,segId:seg.id,color:seg.color,context:'',trigger:'',solution:'',parent:''};
+            allJobs.push(jobMap[parentKey]);
+          }
+          jobMap[parentKey].count++;
+          links.push({source:key,target:parentKey});
+        }
+      });
+    });
+  });
+
+  const container=document.getElementById('graph-container');
+  const w=container.clientWidth,h=container.clientHeight;
+  const svg=d3.select('#graph-svg');
+  svg.selectAll('*').remove();
+
+  if(!allJobs.length){
+    svg.append('text').attr('x',w/2).attr('y',h/2).attr('text-anchor','middle').attr('fill','#9090a8').attr('font-size','14px').text('Пока нет данных. Добавь интервью в сегменты.');
+    return;
+  }
+
+  const g=svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.3,3]).on('zoom',e=>g.attr('transform',e.transform)));
+
+  const sim=d3.forceSimulation(allJobs)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(100))
+    .force('charge',d3.forceManyBody().strength(-200))
+    .force('center',d3.forceCenter(w/2,h/2))
+    .force('collision',d3.forceCollide().radius(d=>r(d)+8));
+
+  const link=g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke','rgba(255,255,255,0.15)').attr('stroke-width',1.5)
+    .attr('marker-end','url(#arrow)');
+
+  svg.append('defs').append('marker')
+    .attr('id','arrow').attr('viewBox','0 -5 10 10').attr('refX',20).attr('refY',0)
+    .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+    .append('path').attr('d','M0,-5L10,0L0,5').attr('fill','rgba(255,255,255,0.3)');
+
+  const node=g.append('g').selectAll('g').data(allJobs).join('g')
+    .call(d3.drag().on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
+
+  node.append('circle').attr('r',d=>r(d)).attr('fill',d=>d.color+'33').attr('stroke',d=>d.color).attr('stroke-width',2);
+  node.append('text').attr('text-anchor','middle').attr('dy','0.3em').attr('fill','#f0f0f0').attr('font-size',d=>Math.max(8,Math.min(12,r(d)-2))+'px').text(d=>d.label.length>20?d.label.substring(0,18)+'...':d.label);
+
+  const tooltip=document.getElementById('tooltip');
+  node.on('mouseover',(e,d)=>{
+    tooltip.style.display='block';
+    tooltip.innerHTML=`<strong style="color:${d.color}">${d.label}</strong><br>Упоминаний: ${d.count}<br>${d.importance?`Важность: ${d.importance}/10<br>`:''}${d.context?`Контекст: ${d.context}<br>`:''}${d.solution?`Решение: ${d.solution}`:''}`;
+    tooltip.style.left=(e.clientX-container.getBoundingClientRect().left+12)+'px';
+    tooltip.style.top=(e.clientY-container.getBoundingClientRect().top-20)+'px';
+  }).on('mousemove',(e)=>{
+    tooltip.style.left=(e.clientX-container.getBoundingClientRect().left+12)+'px';
+    tooltip.style.top=(e.clientY-container.getBoundingClientRect().top-20)+'px';
+  }).on('mouseout',()=>tooltip.style.display='none');
+
+  sim.on('tick',()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+
+  // Legend
+  const leg=document.getElementById('graph-legend');
+  leg.innerHTML=SEGMENTS.map(s=>`<div class="gl-item"><div class="gl-dot" style="background:${s.color}"></div>${s.name} (${(state.interviews[s.id]||[]).length} интервью)</div>`).join('');
+}
+
+function r(d){return Math.max(16,Math.min(45,(d.importance||5)*2+(d.count||1)*4));}
+
+const INVITE_MSGS = {"s1": "Привет! Я Юля, продакт в PeopleDo.\n\nМы делаем инструмент для экспертов: страницу, которую можно быстро отправить после знакомства, конференции или вебинара вместо длинного сообщения о себе.\n\nСейчас провожу короткое исследование на 30-40 минут. Хочу понять, как вы сейчас представляете себя новым людям и что в этом неудобно.\n\nУдобно созвониться на этой неделе?", "s2": "Привет! Я Юля из PeopleDo.\n\nВы регистрировались у нас, но мы вас потеряли. Очень хочу понять почему.\n\nХочу разобраться, что не сработало, что было непонятно или не совпало с ожиданиями.\n\nСможете созвониться на 20 минут и рассказать про ваш опыт? Это очень поможет нам улучшить продукт.", "s3": "Привет! Я Юля, продакт в PeopleDo.\n\nВы зарегистрировались, но до создания профиля не дошли. Такое бывает, и я хочу понять, что остановило.\n\nХочу поговорить про ваш опыт: что было непонятно, неудобно или просто не показалось ценным.\n\nПоможете? Это займёт 15-20 минут.", "s4": "Привет! Я Юля из PeopleDo.\n\nВы создали профиль, спасибо! Хочу понять, как вы планировали его использовать и почему в итоге не стали делиться.\n\nМне важно разобраться, чего не хватило, что было неудобно или в какой момент профиль оказался не нужен.\n\nСможете созвониться на 20 минут на этой неделе?", "s5": "Привет! Я Юля, продакт в PeopleDo.\n\nМы ищем людей, которые выступают на мероприятиях, чтобы протестировать с ними наш инструмент: страницу, которую можно показать аудитории после доклада или отправить новым контактам.\n\nХочу сначала понять, как вы сейчас это делаете: что отправляете после выступления, как собираете контакты и что в этом неудобно.\n\nИнтересно созвониться на 20-30 минут?", "s6": "Привет! Я Юля из PeopleDo.\n\nВы создали профиль и уже им поделились. Вы как раз тот человек, с кем мне очень важно поговорить.\n\nХочу понять, для какой задачи вы использовали профиль, кому отправляли и как это сработало.\n\nСможете созвониться на 30-40 минут? Буду очень благодарна."};
+
+
+function renderArtifacts(seg){
+  const savedArt = state.artifacts && state.artifacts[seg.id] ? state.artifacts[seg.id] : {};
+  const invite = savedArt.invite !== undefined ? savedArt.invite : (INVITE_MSGS[seg.id] || '');
+  const extra = savedArt.extra || '';
+  return `
+    <div class="card">
+      <div class="card-title">Пригласительное сообщение для рекрутинга</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Используй для поиска респондентов. Можешь редактировать прямо здесь.</div>
+      <textarea id="invite-${seg.id}" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;min-height:160px;outline:none" onchange="saveArtifact('${seg.id}','invite',this.value)">${invite}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" style="font-size:12px" onclick="copyInvite('${seg.id}')">Копировать</button>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetInvite('${seg.id}')">Сбросить</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Дополнительные артефакты</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Ссылки, заметки, шаблоны, договорённости о рекрутинге</div>
+      <textarea id="extra-${seg.id}" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;min-height:100px;outline:none" placeholder="Ссылки на каналы поиска, заметки, контакты..." onchange="saveArtifact('${seg.id}','extra',this.value)">${extra}</textarea>
+    </div>
+  `;
+}
+
+function saveArtifact(segId,key,val){
+  if(!state.artifacts)state.artifacts={};
+  if(!state.artifacts[segId])state.artifacts[segId]={};
+  state.artifacts[segId][key]=val;
+  saveState();
+}
+
+function copyInvite(segId){
+  const el=document.getElementById('invite-'+segId);
+  navigator.clipboard.writeText(el.value).then(()=>{
+    const btn=el.nextElementSibling.firstElementChild;
+    btn.textContent='Скопировано!';
+    setTimeout(()=>btn.textContent='Копировать',1500);
+  });
+}
+
+function resetInvite(segId){
+  const el=document.getElementById('invite-'+segId);
+  el.value=INVITE_MSGS[segId]||'';
+  saveArtifact(segId,'invite',el.value);
+}
+
+// INIT
+loadState();
+buildSidebar();
+updateStats();
+</script>
+</body>
+</html>
