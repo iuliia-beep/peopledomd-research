@@ -453,6 +453,10 @@ function switchSegTab(tab,segId){
   if(tab==='int'){
     document.getElementById('int-list-'+segId).innerHTML=renderInterviews(segId);
   }
+  if(tab==='rec'){
+    const seg=SEGMENTS.find(s=>s.id===segId);
+    if(seg) document.getElementById('tc-rec').innerHTML=renderRecruitment(seg);
+  }
 }
 
 function renderHypotheses(seg){
