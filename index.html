@@ -882,6 +882,26 @@ function deleteRecruit(segId,idx){
   switchSegTab('rec',segId);
 }
 
+
+// Экспорт в глобальный scope для inline onclick
+window.showView = showView;
+window.openSegment = openSegment;
+window.switchSegTab = switchSegTab;
+window.showAddInterview = showAddInterview;
+window.showAddRecruit = showAddRecruit;
+window.saveInterview = saveInterview;
+window.saveRecruit = saveRecruit;
+window.deleteInterview = deleteInterview;
+window.deleteRecruit = deleteRecruit;
+window.addJobRow = addJobRow;
+window.closeModal = closeModal;
+window.filterComp = filterComp;
+window.toggleSort = function(){};
+window.copyInvite = copyInvite;
+window.resetInvite = resetInvite;
+window.saveArtifact = saveArtifact;
+window.updateRecruitStatus = updateRecruitStatus;
+
 // INIT
 loadState();
 buildSidebar();
