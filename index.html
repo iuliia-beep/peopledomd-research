@@ -356,9 +356,32 @@ const SEGMENTS = [
 let state = {interviews: {}, jobs: {}};
 
 function loadState(){
-  // Firebase: подписываемся на изменения в реальном времени
-  document.getElementById('sync-status').textContent='Синхронизирован ✓';
+  let fbReceived = false;
+
+  // Таймаут: если Firebase не ответил за 8 секунд — fallback на localStorage
+  const fbTimeout = setTimeout(() => {
+    if(!fbReceived){
+      document.getElementById('sync-status').textContent='Офлайн режим ⚠️';
+      document.getElementById('sync-status').style.color='#f59e0b';
+      const saved = localStorage.getItem('ajtbd-state');
+      if(saved){
+        try {
+          const d = JSON.parse(saved);
+          state.interviews = d.interviews || {};
+          state.jobs = d.jobs || {};
+          state.artifacts = d.artifacts || {};
+        } catch(e){}
+      }
+      SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
+      updateStats();
+    }
+  }, 8000);
+
   DATA_REF.on('value', (snapshot) => {
+    fbReceived = true;
+    clearTimeout(fbTimeout);
+    document.getElementById('sync-status').textContent='Синхронизирован ✓';
+    document.getElementById('sync-status').style.color='var(--accent)';
     const data = snapshot.val();
     if(data){
       state.interviews = data.interviews || {};
@@ -366,9 +389,14 @@ function loadState(){
       state.artifacts = data.artifacts || {};
     }
     SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
+    // Сохраняем копию в localStorage как backup
+    localStorage.setItem('ajtbd-state', JSON.stringify(state));
     updateStats();
-    // Если открыт граф — перестроить
     if(document.getElementById('graph-view').classList.contains('active')) renderGraph();
+  }, (error) => {
+    document.getElementById('sync-status').textContent='Ошибка соединения ✗';
+    document.getElementById('sync-status').style.color='var(--danger)';
+    console.error('Firebase error:', error);
   });
 }
 function saveState(){
