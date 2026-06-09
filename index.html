@@ -358,24 +358,37 @@ let state = {interviews: {}, jobs: {}};
 function loadState(){
   let fbReceived = false;
 
-  // Таймаут: если Firebase не ответил за 8 секунд — fallback на localStorage
+  const DB_REST = 'https://peopledomd-research-default-rtdb.europe-west1.firebasedatabase.app/ajtbd-tool.json';
+
+  // Таймаут: если Firebase WebSocket не ответил за 6 секунд — fallback на REST API
   const fbTimeout = setTimeout(() => {
     if(!fbReceived){
-      document.getElementById('sync-status').textContent='Офлайн режим ⚠️';
-      document.getElementById('sync-status').style.color='#f59e0b';
-      const saved = localStorage.getItem('ajtbd-state');
-      if(saved){
-        try {
-          const d = JSON.parse(saved);
-          state.interviews = d.interviews || {};
-          state.jobs = d.jobs || {};
-          state.artifacts = d.artifacts || {};
-        } catch(e){}
-      }
-      SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
-      updateStats();
+      document.getElementById('sync-status').textContent='Загрузка через HTTP...';
+      fetch(DB_REST)
+        .then(r=>r.json())
+        .then(data=>{
+          if(data){
+            state.interviews = data.interviews || {};
+            state.jobs = data.jobs || {};
+            state.artifacts = data.artifacts || {};
+          }
+          SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
+          localStorage.setItem('ajtbd-state', JSON.stringify(state));
+          document.getElementById('sync-status').textContent='Загружено (HTTP) ⚠️';
+          document.getElementById('sync-status').style.color='#f59e0b';
+          updateStats();
+        })
+        .catch(()=>{
+          // Последний fallback — localStorage
+          const saved = localStorage.getItem('ajtbd-state');
+          if(saved){ try{ const d=JSON.parse(saved); state.interviews=d.interviews||{}; state.jobs=d.jobs||{}; state.artifacts=d.artifacts||{}; }catch(e){} }
+          SEGMENTS.forEach(s=>{if(!state.interviews[s.id])state.interviews[s.id]=[];if(!state.jobs[s.id])state.jobs[s.id]=[];});
+          document.getElementById('sync-status').textContent='Офлайн ⚠️';
+          document.getElementById('sync-status').style.color='#f59e0b';
+          updateStats();
+        });
     }
-  }, 8000);
+  }, 6000);
 
   DATA_REF.on('value', (snapshot) => {
     fbReceived = true;
