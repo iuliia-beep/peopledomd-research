@@ -356,57 +356,72 @@ const SEGMENTS = [
 let state = {interviews: {}, jobs: {}};
 
 const DB_REST = 'https://peopledomd-research-default-rtdb.europe-west1.firebasedatabase.app/ajtbd-tool.json';
+const LS_KEY = 'ajtbd-state-v2';
 
 function loadState(){
-  document.getElementById('sync-status').textContent='Загрузка...';
-  fetch(DB_REST)
-    .then(r=>r.json())
+  const st = document.getElementById('sync-status');
+  
+  // 1. Сначала загружаем из localStorage — мгновенно, работает везде
+  const saved = localStorage.getItem(LS_KEY);
+  if(saved){
+    try{
+      const d = JSON.parse(saved);
+      state.interviews = d.interviews || {};
+      state.jobs = d.jobs || {};
+      state.artifacts = d.artifacts || {};
+      state.recruits = d.recruits || {};
+    }catch(e){}
+  }
+  SEGMENTS.forEach(s=>{
+    if(!state.interviews[s.id]) state.interviews[s.id]=[];
+    if(!state.jobs[s.id]) state.jobs[s.id]=[];
+    if(!state.recruits[s.id]) state.recruits[s.id]=[];
+  });
+  updateStats();
+  st.textContent = saved ? 'Загружено ✓' : 'Новая база';
+  st.style.color = 'var(--accent)';
+  
+  // 2. Фоновая синхронизация с Firebase (необязательная)
+  fetch(DB_REST, {cache: 'no-store'})
+    .then(r => { if(!r.ok) throw new Error('Firebase '+r.status); return r.json(); })
     .then(data=>{
-      if(data){
+      if(data && (data.interviews || data.recruits)){
         state.interviews = data.interviews || {};
         state.jobs = data.jobs || {};
         state.artifacts = data.artifacts || {};
         state.recruits = data.recruits || {};
+        SEGMENTS.forEach(s=>{
+          if(!state.interviews[s.id]) state.interviews[s.id]=[];
+          if(!state.jobs[s.id]) state.jobs[s.id]=[];
+          if(!state.recruits[s.id]) state.recruits[s.id]=[];
+        });
+        localStorage.setItem(LS_KEY, JSON.stringify(state));
+        st.textContent = 'Синхронизирован ✓';
+        st.style.color = 'var(--accent)';
+        updateStats();
+        if(document.getElementById('graph-view').classList.contains('active')) renderGraph();
       }
-      SEGMENTS.forEach(s=>{
-        if(!state.interviews[s.id]) state.interviews[s.id]=[];
-        if(!state.jobs[s.id]) state.jobs[s.id]=[];
-        if(!state.recruits[s.id]) state.recruits[s.id]=[];
-      });
-      document.getElementById('sync-status').textContent='Синхронизирован ✓';
-      document.getElementById('sync-status').style.color='var(--accent)';
-      updateStats();
-      if(document.getElementById('graph-view').classList.contains('active')) renderGraph();
     })
-    .catch(err=>{
-      console.error('Load error:', err);
-      document.getElementById('sync-status').textContent='Ошибка загрузки ✗';
-      document.getElementById('sync-status').style.color='var(--danger)';
-      SEGMENTS.forEach(s=>{
-        if(!state.interviews[s.id]) state.interviews[s.id]=[];
-        if(!state.jobs[s.id]) state.jobs[s.id]=[];
-        if(!state.recruits[s.id]) state.recruits[s.id]=[];
-      });
-      updateStats();
+    .catch(()=>{
+      st.textContent = 'Офлайн 💾';
+      st.style.color = '#f59e0b';
     });
 }
 
 function saveState(){
-  document.getElementById('sync-status').textContent='Сохранение...';
+  const st = document.getElementById('sync-status');
+  // Всегда сохраняем в localStorage
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  st.textContent = 'Сохранено 💾';
+  st.style.color = 'var(--accent)';
+  // Пробуем сохранить в Firebase фоном
   fetch(DB_REST, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(state)
   })
-  .then(()=>{
-    document.getElementById('sync-status').textContent='Сохранено ✓';
-    document.getElementById('sync-status').style.color='var(--accent)';
-  })
-  .catch(e=>{
-    document.getElementById('sync-status').textContent='Ошибка сохранения ✗';
-    document.getElementById('sync-status').style.color='var(--danger)';
-    console.error('Save error:', e);
-  });
+  .then(()=>{ st.textContent = 'Синхронизирован ✓'; })
+  .catch(()=>{ /* localStorage уже сохранён */ });
 }
 
 // BUILD SIDEBAR
